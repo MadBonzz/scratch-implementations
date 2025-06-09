@@ -1,2 +1,5 @@
 /papers/
 /Machine-Learning/
+*.pth
+*csv
+*.safetensors
