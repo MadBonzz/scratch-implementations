@@ -9,7 +9,9 @@ model = AutoModelForCausalLM.from_pretrained(model_id).to(device)
 text = "Hello I am Shakespeare"
 inputs = tokenizer.encode(text, return_tensors="pt").to(device)
 
-out = sm.top_p(model, inputs, 0.9, 20, 0, device)
-print(tokenizer.decode(out[0]))
-out = sm.top_p(model, inputs, 0.6, 20, 0, device)
-print(tokenizer.decode(out[0]))
+print("With multiple as false")
+probs, out = sm.beam_search(model, inputs, 2, 1.3, True, False, 0.8, 40, 0.9, 40, 0, 'cuda')
+print(tokenizer.decode(out[probs.index(max(probs))]))
+print("With multiple as true")
+probs, out = sm.beam_search(model, inputs, 2, 1.3, False, True, 0.8, 40, 0.9, 40, 0, 'cuda')
+print(tokenizer.decode(out[probs.index(max(probs))]))
