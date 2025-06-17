@@ -39,9 +39,10 @@ class GroupedQueryAttention(nn.Module):
         self.head_dim = head_dim
         self.kv_heads = kv_heads
         self.repeat = n_heads // kv_heads
-        self.q_proj = nn.Linear(n_embed, head_dim * n_heads)
-        self.k_proj = nn.Linear(n_embed, head_dim * kv_heads)
-        self.v_proj = nn.Linear(n_embed, head_dim * kv_heads)
+        self.q_proj = nn.Linear(n_embed, head_dim * n_heads, bias=False)
+        self.k_proj = nn.Linear(n_embed, head_dim * kv_heads, bias=False)
+        self.v_proj = nn.Linear(n_embed, head_dim * kv_heads, bias=False)
+        self.o_proj = nn.Linear(head_dim * n_heads, n_embed, bias=False)
         self.rope = rope
 
     def attention(self, q, k, v):
@@ -69,15 +70,15 @@ class GroupedQueryAttention(nn.Module):
             out[:, :, i*self.repeat*self.head_dim:(i+1)*self.repeat*self.head_dim] = self.attention(q_vec[:, :, i*self.repeat*self.head_dim:(i+1)*self.repeat*self.head_dim],
                                                                                                     k_vec[:, :, i*self.head_dim:(i+1)*self.head_dim],
                                                                                                     v_vec[:, :, i*self.head_dim:(i+1)*self.head_dim]) 
-        return out
+        return self.o_proj(out)
 
 
 class MLP(nn.Module):
     def __init__(self, n_embed, hidden_size):
         super(MLP, self).__init__()
-        self.gate_proj = nn.Linear(n_embed, hidden_size)
-        self.up_proj = nn.Linear(n_embed, hidden_size)
-        self.down_proj = nn.Linear(hidden_size, n_embed)
+        self.gate_proj = nn.Linear(n_embed, hidden_size, bias=False)
+        self.up_proj = nn.Linear(n_embed, hidden_size, bias=False)
+        self.down_proj = nn.Linear(hidden_size, n_embed, bias=False)
         self.act_fn = nn.SiLU()
 
     def forward(self, x):
@@ -91,7 +92,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.input_norm = RMSNorm(n_embed, eps, device)
         self.out_norm = RMSNorm(n_embed, eps, device)
-        self.attn = GroupedQueryAttention(n_heads, kv_heads, n_embed, head_dim, max_len, rope, device)
+        self.self_attn = GroupedQueryAttention(n_heads, kv_heads, n_embed, head_dim, max_len, rope, device)
         self.mlp = MLP(n_embed, hidden_size)
 
     def forward(self, x):
@@ -106,9 +107,9 @@ class SmolLM(nn.Module):
         super(SmolLM, self).__init__()
         self.max_len = max_len
         self.device = device
-        self.embedding = nn.Embedding(n_voacb, n_embed)
+        self.embed_tokens = nn.Embedding(n_voacb, n_embed)
         self.lm_head = nn.Linear(n_embed, n_voacb)
-        self.rope = RoPE(60, 32)
+        self.rope = RoPE(head_dim * (n_heads // kv_heads), max_len)
         self.layers = nn.Sequential(*[Decoder(n_heads, kv_heads, n_embed, head_dim, hidden_size, max_len, self.rope, eps, device) for _ in range(n_layers)])
 
     def forward(self, x):
@@ -117,7 +118,7 @@ class SmolLM(nn.Module):
         logits = self.lm_head(x)
         return logits
 
-sample = torch.randint(high=32, size=(4, 16)).to(device)
-model = SmolLM(32, 180, 30, 9, 3, 20, 540, 32).to(device)
-out = model(sample)
-print(out.shape)
+# sample = torch.randint(high=49152, size=(4, 256)).to(device)
+# model = SmolLM(49152, 576, 30, 9, 3, 64, 1536, 2048).to(device)
+# out = model(sample)
+# print(out.shape)
