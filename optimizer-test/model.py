@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 class Model(nn.Module):
     def __init__(self, n_features, n_cls, hidden_size, bias=False):
@@ -13,5 +12,5 @@ class Model(nn.Module):
 
     def forward(self, x):
         x = self.act_fn(self.layer1(x))
-        return F.softmax(self.layer2(x))
+        return self.layer2(x)
         

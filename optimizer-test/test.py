@@ -25,7 +25,7 @@ def run_tests(optimizer, n_fts, n_cls, train_data, test_data, seed, lr):
     epochs = 100
     model = Model(n_fts, n_cls, 512).to(device)
     train_loader = DataLoader(train_data, 64, shuffle=True)
-    test_loader  = DataLoader(test_data, 16, shuffle=True)
+    test_loader  = DataLoader(test_data, 64, shuffle=True)
     loss_fn = nn.CrossEntropyLoss()
     if optimizer == 'custom':
         optim = CustomAdam(model.parameters(), lr)
@@ -54,7 +54,6 @@ def run_tests(optimizer, n_fts, n_cls, train_data, test_data, seed, lr):
             train_loss += loss.item()
         model.eval()
         for _, batch in enumerate(test_loader):
-            optim.zero_grad()
             x, y = batch['x'].float().to(device), batch['y'].to(device)
             out = model(x)
             loss = loss_fn(out, y)
@@ -68,10 +67,10 @@ seed_env(SEED)
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-df = pd.read_csv('iris.csv')
+df = pd.read_csv('crop.csv')
 le = LabelEncoder()
-df['Species'] = le.fit_transform(df[['Species']])
-X, y = df.drop(columns=['Species']), df['Species']
+df['label'] = le.fit_transform(df[['label']])
+X, y = df.drop(columns=['label']), df['label']
 
 dataset = IrisDataset(X, y)
 train_size = int(0.8 * len(dataset))
@@ -79,9 +78,34 @@ test_size = len(dataset) - train_size
 
 train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
+optimizers = ['custom', 'adam', 'rms', 'ada', 'sgd']
+lrs = [1e-3, 1e-4]
 
-train, test = run_tests('custom', X.shape[-1], y.nunique(), train_dataset, test_dataset, 50, 1e-4)
-print(train)
-print(test)
-    
-    
+experiment_data = {}
+for lr in lrs:
+    experiment_data[lr] = []
+
+for lr in lrs:
+    for optimizer in optimizers:
+        print(optimizer)
+        train, test = run_tests(optimizer, X.shape[-1], y.nunique(), train_dataset, test_dataset, 65, lr)
+        sample_dict = {'optimizer' : optimizer, 'train' : train, 'test' : test}
+        experiment_data[lr].append(sample_dict)
+
+colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+
+for lr_idx, (lr, results) in enumerate(experiment_data.items()):
+    plt.figure(figsize=(10, 5))
+    for idx, res in enumerate(results):
+        color = colors[idx % len(colors)]
+        # Plot train loss
+        # plt.plot(res['train'], label=f"{res['optimizer']} - train", color=color, linestyle='-', marker=marker, linewidth=2)
+        # Plot test loss
+        plt.plot(res['test'], label=f"{res['optimizer']} - test", color=color, linestyle='--', linewidth=2)
+    plt.title(f"Loss vs Epochs for learning rate {lr}")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f'crop-{lr}.png')
