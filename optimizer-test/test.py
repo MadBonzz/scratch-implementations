@@ -27,7 +27,7 @@ def run_tests(optimizer, n_fts, n_cls, train_data, test_data, seed, lr):
     train_loader = DataLoader(train_data, 64, shuffle=True)
     test_loader  = DataLoader(test_data, 64, shuffle=True)
     loss_fn = nn.CrossEntropyLoss()
-    if optimizer == 'custom':
+    if optimizer == 'owaadam':
         optim = CustomAdam(model.parameters(), lr)
     elif optimizer == 'adam':
         optim = Adam(model.parameters(), lr)
@@ -73,10 +73,11 @@ seed_env(SEED)
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-df = pd.read_csv('iris.csv')
+df = pd.read_csv('crop.csv')
 le = LabelEncoder()
-df['Species'] = le.fit_transform(df[['Species']])
-X, y = df.drop(columns=['Species']), df['Species']
+print(df.columns)
+df['label'] = le.fit_transform(df[['label']])
+X, y = df.drop(columns=['label']), df['label']
 
 dataset = IrisDataset(X, y)
 train_size = int(0.8 * len(dataset))
@@ -84,7 +85,7 @@ test_size = len(dataset) - train_size
 
 train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
-optimizers = ['custom', 'adam', 'rms', 'ada', 'sgd', 'adamw', 'nadam', 'radam']
+optimizers = ['owaadam', 'adam', 'rms', 'ada', 'sgd', 'adamw', 'nadam', 'radam']
 lrs = [1e-3, 1e-4]
 
 experiment_data = {}
@@ -112,4 +113,4 @@ for lr_idx, (lr, results) in enumerate(experiment_data.items()):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(f'iris-{lr}.png')
+    plt.savefig(f'crop-{lr}.png')
