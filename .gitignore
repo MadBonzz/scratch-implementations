@@ -1,7 +1,5 @@
 /papers/
-/Machine-Learning/
 *__pycache__
 *.pth
-*csv
 *.safetensors
 *.txt
